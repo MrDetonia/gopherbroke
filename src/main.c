@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
 #include <netinet/in.h>
 
 #define DEFAULT_PORT 70
@@ -13,6 +14,28 @@
 void error(char *msg) {
     perror(msg);
     exit(1);
+}
+
+/* handle a connection */
+void handle_conn(int sockfd) {
+    /* buffer to read into */
+    char buffer[256];
+
+    /* read incoming data from socket */
+    int n;
+    bzero(buffer, 256);
+    n = read(sockfd, buffer, 255);
+    if (n < 0) error("ERROR reading from socket");
+
+    /* print data to stdout */
+    printf("Received: %s", buffer);
+
+    /* write data to socket */
+    n = write(sockfd, "data received", 13);
+    if (n < 0) error("ERROR writing to socket");
+
+    /* close this socket */
+    close(sockfd);
 }
 
 
@@ -25,9 +48,6 @@ int main(int argc, char* argv[]) {
 
     /* peer address length */
     socklen_t clilen;
-
-    /* buffer to read into */
-    char buffer[256];
 
     /* socket address structure */
     struct sockaddr_in {
@@ -82,29 +102,33 @@ int main(int argc, char* argv[]) {
     /* listen to the socket */
     listen(sockfd, 5);
 
-    /* accept incoming connections */
+    /* initialise clilen */
     clilen = sizeof(cli_addr);
-    newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
-    if (newsockfd < 0) error("ERROR accepting connection");
 
-    /* read incoming data from socket */
-    bzero(buffer, 256);
-    n = read(newsockfd, buffer, 255);
-    if (n < 0) error("ERROR reading from socket");
+    /* server loop */
+    int pid;
+    while(1) {
+        /* accept incoming connections */
+        newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
+        if (newsockfd < 0) error("ERROR accepting connection");
 
-    /* print data to stdout */
-    printf("Received: %s", buffer);
+        /* fork process to handle multiple connections */
+        pid = fork();
+        if (pid < 0) error("ERROR forking process");
 
-    /* write data to socket */
-    n = write(newsockfd, "data received", 13);
-    if (n < 0) error("ERROR writing to socket");
+        if (pid == 0) {
+            /* we are the child */
+            close(sockfd);
+            handle_conn(newsockfd);
+            exit(0);
+        }
+        else {
+            /* we are the parent */
+            close(newsockfd);
+            wait(0);
+        }
+    }
 
-    /* close sockets */
-    n = close(sockfd);
-    if (n < 0) error("ERROR closing socket");
-    n = close(newsockfd);
-    if (n < 0) error("ERROR closing socket");
-
-    /* exit successfully */
+    /* exit successfully - never reached */
     exit(0);
 }
