@@ -3,6 +3,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <unistd.h>
+#include <getopt.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
@@ -23,7 +24,7 @@ void handle_conn(int sockfd) {
 
     /* read incoming data from socket */
     int n;
-    bzero(buffer, 256);
+    memset(buffer, 0, 256);
     n = read(sockfd, buffer, 255);
     if (n < 0) error("ERROR reading from socket");
 
@@ -51,10 +52,10 @@ int main(int argc, char* argv[]) {
 
     /* socket address structure */
     struct sockaddr_in {
-        short   sin_family;
-        u_short sin_port;
-        struct  in_addr sin_addr;
-        char    sin_zero[8];
+        short           sin_family;
+        unsigned short  sin_port;
+        struct          in_addr sin_addr;
+        char            sin_zero[8];
     } serv_addr, cli_addr;
 
     /* parse options */
@@ -89,7 +90,7 @@ int main(int argc, char* argv[]) {
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
 
     /* initialise the serv_addr struct */
-    bzero((char *) &serv_addr, sizeof(serv_addr));
+    memset((char *) &serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(port);
     serv_addr.sin_addr.s_addr = INADDR_ANY;
