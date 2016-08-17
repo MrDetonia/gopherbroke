@@ -1,0 +1,12 @@
+image: debian:stable
+
+before_script:
+    - apt-get update -qq && apt-get install build-essential
+
+stages:
+    - build
+
+build_linux:
+    stage: build
+    script:
+        - make
