@@ -25,5 +25,10 @@ See LICENSE for more information.
 ## Running
 Simply run the executable with root permissions, and the server will listen on port 70 by default.
 
+Without root permissions, the server will be unable to chroot into the given directory.
+By default, this directory is /var/gopher.
+Be sure that the user running the server has read permissions for the given directory.
+
 gopherbroke accepts the following arguments:
+- `-d <dir>` which directory to use as the server root (default: /var/gopher)
 - `-p <port>` what port to listen on (default: 70)
