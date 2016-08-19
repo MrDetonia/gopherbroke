@@ -10,29 +10,84 @@
 #include <sys/wait.h>
 #include <netinet/in.h>
 
+/* typical boolean definitions */
+typedef int bool;
+#define TRUE 1
+#define FALSE 0
+
+/* program defaults */
 #define DEFAULT_PORT 70
 #define DEFAULT_ROOT "/var/gopher"
 
 /* called when a syscall fails */
-void error(char *msg) {
+void error(char* msg) {
     perror(msg);
     exit(1);
 }
 
+/* checks if a directory exists */
+bool direxists(char* dir) {
+    struct stat sb;
+    if(stat(dir, &sb) == 0 && S_ISDIR(sb.st_mode)) return TRUE;
+    return FALSE;
+}
+
+/* checks if a file exists */
+bool fileexists(char* file) {
+    struct stat sb;
+    if(stat(file, &sb) == 0 && S_ISREG(sb.st_mode)) return TRUE;
+    return FALSE;
+}
+
+/* generate response to query */
+char* response(const char* in) {
+    char* buf;
+    char* out;
+
+    if (strncmp("\n", in, 1) == 0) {
+        /* open root .gopher file and list contents */
+        FILE* f = fopen("/.gopher", "rb");
+
+        fseek(f, 0, SEEK_END);
+        long fsize = ftell(f);
+        buf = malloc(fsize + 1);
+        out = malloc(fsize + 1);
+
+        fseek(f, 0, SEEK_SET);
+        fread(buf, fsize, 1, f);
+        fclose(f);
+
+        /* copy contents of file to output */
+        strcpy(out, buf);
+    }
+    else {
+        /* invalid input, send back error */
+        out = malloc(34);
+        strcpy(out, "3Unrecognised input\tfake\t(NULL) 0");
+    }
+
+    return out;
+}
+
 /* handle a connection */
 void handle_conn(int sockfd) {
-    /* buffer to read into */
-    char buffer[256];
+    /* send/receive buffers */
+    char in[256];
+    char* out;
 
     /* read incoming data from socket */
-    memset(buffer, 0, 256);
-    if (read(sockfd, buffer, 255) != 0) error("ERROR reading from socket");
+    memset(in, 0, 256);
+    if (read(sockfd, in, 255) < 0) error("ERROR reading from socket");
 
     /* print data to stdout */
-    printf("INFO received: %s", buffer);
+    printf("INFO received: %s", in);
+
+    /* decide what to send back */
+    out = response(in);
 
     /* write data to socket */
-    if (write(sockfd, "data received", 13) != 0) error("ERROR writing to socket");
+    if (write(sockfd, out, strlen(out)) < 0) error("ERROR writing to socket");
+    if (write(sockfd, "\r\n.\r\n", 5) < 0) error("ERROR writing to socket");
 
     /* close this socket */
     close(sockfd);
@@ -64,16 +119,14 @@ int main(int argc, char* argv[]) {
     int o, n;
     while ((o = getopt(argc, argv, "d:p:")) != -1) {
         switch(o) {
-            case 'd': {
-                struct stat sb;
-                if(stat(optarg, &sb) == 0 && S_ISDIR(sb.st_mode)) {
+            case 'd':
+                if(direxists(optarg)) {
                     rootdir = optarg;
                 }
                 else {
                     fprintf(stderr, "WARNING %s does not seem to be a directory, using default of %s\n", optarg, DEFAULT_ROOT);
                 }
                 break;
-            }
             case 'p':
                 n = atoi(optarg);
                 if (n > 0) port = n;
