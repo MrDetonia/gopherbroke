@@ -25,55 +25,111 @@ void error(char* msg) {
     exit(1);
 }
 
+/* wrapper for write() with error handling */
+void write2(int sockfd, const char* data, int len) {
+    if (write(sockfd, data, len) < 0) error("ERROR writing to socket");
+}
+
 /* checks if a directory exists */
-bool direxists(char* dir) {
+bool direxists(const char* dir) {
     struct stat sb;
     if(stat(dir, &sb) == 0 && S_ISDIR(sb.st_mode)) return TRUE;
     return FALSE;
 }
 
 /* checks if a file exists */
-bool fileexists(char* file) {
+bool fileexists(const char* file) {
     struct stat sb;
     if(stat(file, &sb) == 0 && S_ISREG(sb.st_mode)) return TRUE;
     return FALSE;
 }
 
-/* generate response to query */
-char* response(const char* in) {
-    char* buf;
-    char* out;
+void printfile(int sockfd, const char* path) {
+    /* open file */
+    FILE* f = fopen(path, "rb");
 
-    if (strncmp("\n", in, 1) == 0) {
-        /* open root .gopher file and list contents */
-        FILE* f = fopen("/.gopher", "rb");
-
-        fseek(f, 0, SEEK_END);
-        long fsize = ftell(f);
-        buf = malloc(fsize + 1);
-        out = malloc(fsize + 1);
-
-        fseek(f, 0, SEEK_SET);
-        fread(buf, fsize, 1, f);
-        fclose(f);
-
-        /* copy contents of file to output */
-        strcpy(out, buf);
+    if(f == 0) {
+        /* error reading file */
+        write2(sockfd, "3Invalid input\tfake\t(NULL) 0", 29);
     }
     else {
-        /* invalid input, send back error */
-        out = malloc(34);
-        strcpy(out, "3Unrecognised input\tfake\t(NULL) 0");
+        /* buffer for lines */
+        char buf[256];
+        memset(buf, 0, 256);
+
+        /* write each line in the file to socket */
+        while(fgets(buf, 256, f) != NULL) {
+            /* allocate space for adjusted line */
+            char* line = malloc(strlen(buf) + 1);
+            memset(line, 0, strlen(buf) + 1);
+
+            /* replace \n with \r\n */
+            strncpy(line, buf, strlen(buf) - 1);
+            strcat(line, "\r\n");
+
+            /* write line to socket */
+            write2(sockfd, line, strlen(line));
+
+            /* always clear buffer to avoid corrupt data */
+            memset(buf, 0, 256);
+
+            /* free up line buffer */
+            free(line);
+        }
+
+        /* close file */
+        fclose(f);
+    }
+}
+
+void respond(int sockfd, const char* in) {
+    if (strncmp("\n", in, 1) == 0 || strncmp("\r\n", in, 2) == 0) {
+        printfile(sockfd, "/.gopher");
+    }
+    else {
+        char* buf = malloc(strlen(in) - 1);
+        strncpy(buf, in, strlen(in) - 1);
+
+        /* determine if given path is a file or directory */
+        if(direxists(buf)) {
+            printf("INFO serving directory %s\n", buf);
+
+            /* path is directory - print .gopher */
+            char* path = malloc(strlen(buf) + 8);
+
+            /* append '/.gopher' to path */
+            strcpy(path, buf);
+            strcat(path, "/.gopher");
+
+            /* print file */
+            printfile(sockfd, path);
+
+            /* free memory */
+            free(path);
+        }
+        else if(fileexists(buf)) {
+            printf("INFO serving file %s\n", buf);
+
+            /* print contents of file */
+            printfile(sockfd, buf);
+        }
+        else {
+            /* invalid input, return error */
+            write2(sockfd, "3Invalid input\tfake\t(NULL) 0", 29);
+        }
+
+        /* free memory */
+        free(buf);
     }
 
-    return out;
+    /* we always finish with a period on a line */
+    write2(sockfd, "\r\n.\r\n", 5);
 }
 
 /* handle a connection */
 void handle_conn(int sockfd) {
     /* send/receive buffers */
     char in[256];
-    char* out;
 
     /* read incoming data from socket */
     memset(in, 0, 256);
@@ -83,11 +139,7 @@ void handle_conn(int sockfd) {
     printf("INFO received: %s", in);
 
     /* decide what to send back */
-    out = response(in);
-
-    /* write data to socket */
-    if (write(sockfd, out, strlen(out)) < 0) error("ERROR writing to socket");
-    if (write(sockfd, "\r\n.\r\n", 5) < 0) error("ERROR writing to socket");
+    respond(sockfd, in);
 
     /* close this socket */
     close(sockfd);
@@ -102,7 +154,8 @@ int main(int argc, char* argv[]) {
     int port = DEFAULT_PORT;
 
     /* root directory of server */
-    char* rootdir = DEFAULT_ROOT;
+    char* rootdir = malloc(strlen(DEFAULT_ROOT));
+    strcpy(rootdir, DEFAULT_ROOT);
 
     /* peer address length */
     socklen_t clilen;
@@ -121,7 +174,8 @@ int main(int argc, char* argv[]) {
         switch(o) {
             case 'd':
                 if(direxists(optarg)) {
-                    rootdir = optarg;
+                    if (realloc(rootdir, strlen(optarg)) == NULL) error("ERROR in memory allocation");
+                    strcpy(rootdir, optarg);
                 }
                 else {
                     fprintf(stderr, "WARNING %s does not seem to be a directory, using default of %s\n", optarg, DEFAULT_ROOT);

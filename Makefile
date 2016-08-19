@@ -4,7 +4,7 @@
 CC = gcc
 
 # compiler flags
-CFLAGS = -D_DEFAULT_SOURCE -std=c11 -O2 -Wall -Wpedantic -Werror
+CFLAGS = -D_DEFAULT_SOURCE -std=c11 -g -Wall -Wpedantic -Werror
 
 # source and build directories
 SRCDIR = src
