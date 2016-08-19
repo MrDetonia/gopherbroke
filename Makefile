@@ -4,7 +4,7 @@
 CC = gcc
 
 # compiler flags
-CFLAGS = -std=c11 -O2 -Wall -Wpedantic -Werror
+CFLAGS = -D_DEFAULT_SOURCE -std=c11 -O2 -Wall -Wpedantic -Werror
 
 # source and build directories
 SRCDIR = src
@@ -15,7 +15,7 @@ BINDIR = bin
 TARGET = gopherbroke
 
 # installation directory
-INSTALL_PREFIX = /usr/local/
+INSTALL_PREFIX = /usr/local
 
 
 ### Internal variables - shouldn't change
@@ -48,9 +48,9 @@ install:
 # uninstall target
 .PHONY: uninstall
 uninstall:
-	rm $(INSTALL_PREFIX)/$(TARGET)
+	rm -f $(INSTALL_PREFIX)/$(TARGET)
 
 # clean build files
 .PHONY: clean
 clean:
-	rm $(OBJDIR)/*.o $(BINDIR)/$(TARGET)
+	rm -f $(OBJDIR)/*.o $(BINDIR)/$(TARGET)

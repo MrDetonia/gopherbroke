@@ -6,10 +6,12 @@
 #include <getopt.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <netinet/in.h>
 
 #define DEFAULT_PORT 70
+#define DEFAULT_ROOT "/var/gopher"
 
 /* called when a syscall fails */
 void error(char *msg) {
@@ -23,17 +25,14 @@ void handle_conn(int sockfd) {
     char buffer[256];
 
     /* read incoming data from socket */
-    int n;
     memset(buffer, 0, 256);
-    n = read(sockfd, buffer, 255);
-    if (n < 0) error("ERROR reading from socket");
+    if (read(sockfd, buffer, 255) != 0) error("ERROR reading from socket");
 
     /* print data to stdout */
-    printf("Received: %s", buffer);
+    printf("INFO received: %s", buffer);
 
     /* write data to socket */
-    n = write(sockfd, "data received", 13);
-    if (n < 0) error("ERROR writing to socket");
+    if (write(sockfd, "data received", 13) != 0) error("ERROR writing to socket");
 
     /* close this socket */
     close(sockfd);
@@ -46,6 +45,9 @@ int main(int argc, char* argv[]) {
 
     /* port to listen on */
     int port = DEFAULT_PORT;
+
+    /* root directory of server */
+    char* rootdir = DEFAULT_ROOT;
 
     /* peer address length */
     socklen_t clilen;
@@ -60,25 +62,47 @@ int main(int argc, char* argv[]) {
 
     /* parse options */
     int o, n;
-    while ((o = getopt(argc, argv, "p:")) != -1) {
+    while ((o = getopt(argc, argv, "d:p:")) != -1) {
         switch(o) {
+            case 'd': {
+                struct stat sb;
+                if(stat(optarg, &sb) == 0 && S_ISDIR(sb.st_mode)) {
+                    rootdir = optarg;
+                }
+                else {
+                    fprintf(stderr, "WARNING %s does not seem to be a directory, using default of %s\n", optarg, DEFAULT_ROOT);
+                }
+                break;
+            }
             case 'p':
                 n = atoi(optarg);
                 if (n > 0) port = n;
                 else {
-                    fprintf(stderr, "%d is not a valid port, using default of %d\n", n, DEFAULT_PORT);
+                    fprintf(stderr, "WARNING %d is not a valid port, using default of %d\n", n, DEFAULT_PORT);
                 }
                 break;
             case '?':
-                if (optopt == 'p') fprintf(stderr, "Option -%c requires an argument\n", optopt);
-                else if (isprint(optopt)) fprintf(stderr, "Unknown option '-%c'\n", optopt);
-                else fprintf(stderr, "Unknown option character '\\x%x'\n", optopt);
+                if (optopt == 'p') fprintf(stderr, "ERROR option -%c requires an argument\n", optopt);
+                else if (isprint(optopt)) fprintf(stderr, "ERROR unknown option '-%c'\n", optopt);
+                else fprintf(stderr, "ERROR unknown option character '\\x%x'\n", optopt);
                 exit(2);
             default:
                 abort();
         }
+    }
 
-        for(n = optind; n < argc; n++) fprintf(stderr, "Non option argument %s\n", argv[n]);
+    for(n = optind; n < argc; n++) fprintf(stderr, "ERROR non option argument %s\n", argv[n]);
+
+    /* move to specified server directory */
+    chdir(rootdir);
+
+    /* attempt to chroot into server directory */
+    if(geteuid() == 0) {
+        printf("INFO chrooting into %s\n", rootdir);
+        if (chroot(rootdir) != 0) error("ERROR chrooting into server directory");
+    }
+    else {
+        fprintf(stderr, "WARNING not root user, can't chroot into %s\n", rootdir);
     }
 
     /* open new socket */
