@@ -263,7 +263,8 @@ int main(int argc, char* argv[]) {
         else {
             /* we are the parent */
             close(newsockfd);
-            wait(0);
+            int status;
+            waitpid(-1, &status, WNOHANG);
         }
     }
 
