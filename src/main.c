@@ -53,25 +53,26 @@ void printfile(int sockfd, const char* path) {
         write2(sockfd, "3Invalid input\tfake\t(NULL) 0", 29);
     }
     else {
-        /* buffer for lines */
-        char buf[256];
-        memset(buf, 0, 256);
+        /* line buffer */
+        char* buf = NULL;
 
-        /* write each line in the file to socket */
-        while(fgets(buf, 256, f) != NULL) {
+        /* line length */
+        size_t len = 0;
+
+        /* bytes read */
+        ssize_t read;
+
+        while((read = getline(&buf, &len, f)) != -1) {
             /* allocate space for adjusted line */
-            char* line = malloc(strlen(buf) + 1);
-            memset(line, 0, strlen(buf) + 1);
+            char* line = malloc(read + 1);
+            memset(line, 0, read + 1);
 
             /* replace \n with \r\n */
-            strncpy(line, buf, strlen(buf) - 1);
+            strncpy(line, buf, read - 1);
             strcat(line, "\r\n");
 
             /* write line to socket */
             write2(sockfd, line, strlen(line));
-
-            /* always clear buffer to avoid corrupt data */
-            memset(buf, 0, 256);
 
             /* free up line buffer */
             free(line);
@@ -174,7 +175,9 @@ int main(int argc, char* argv[]) {
         switch(o) {
             case 'd':
                 if(direxists(optarg)) {
-                    if (realloc(rootdir, strlen(optarg)) == NULL) error("ERROR in memory allocation");
+                    /* set directory to serve from */
+                    rootdir = (char*) realloc(rootdir, strlen(optarg));
+                    if (rootdir == NULL) error("ERROR in memory allocation");
                     strcpy(rootdir, optarg);
                 }
                 else {
@@ -182,6 +185,7 @@ int main(int argc, char* argv[]) {
                 }
                 break;
             case 'p':
+                /* set port to listen on */
                 n = atoi(optarg);
                 if (n > 0) port = n;
                 else {
@@ -189,11 +193,13 @@ int main(int argc, char* argv[]) {
                 }
                 break;
             case '?':
+                /* error handling */
                 if (optopt == 'p') fprintf(stderr, "ERROR option -%c requires an argument\n", optopt);
                 else if (isprint(optopt)) fprintf(stderr, "ERROR unknown option '-%c'\n", optopt);
                 else fprintf(stderr, "ERROR unknown option character '\\x%x'\n", optopt);
                 exit(2);
             default:
+                /* this shouldn't happen */
                 abort();
         }
     }
