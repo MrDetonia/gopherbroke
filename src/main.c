@@ -64,8 +64,8 @@ void printfile(int sockfd, const char* path) {
 
         while((read = getline(&buf, &len, f)) != -1) {
             /* allocate space for adjusted line */
-            char* line = malloc(read + 1);
-            memset(line, 0, read + 1);
+            char* line = malloc(read + 2);
+            memset(line, 0, read + 2);
 
             /* replace \n with \r\n */
             strncpy(line, buf, read - 1);
