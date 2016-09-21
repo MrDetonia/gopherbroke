@@ -16,6 +16,7 @@ See LICENSE for more information.
 ### Requirements
 - C compiler
 - automake
+- libcap
 
 ### Build Process
 - clone this repo using `git clone https://gitla.in/MrDetonia/gopherbroke.git`.
