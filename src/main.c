@@ -8,6 +8,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <sys/capability.h>
 #include <netinet/in.h>
 
 /* typical boolean definitions */
@@ -18,6 +19,9 @@ typedef int bool;
 /* program defaults */
 #define DEFAULT_PORT 70
 #define DEFAULT_ROOT "/var/gopher"
+
+/* string to write to socket on error */
+const char* error_string = "3Invalid input\tfake\t(NULL) 0";
 
 /* called when a syscall fails */
 void error(char* msg) {
@@ -44,13 +48,14 @@ bool fileexists(const char* file) {
     return FALSE;
 }
 
+/* write a file to socket */
 void printfile(int sockfd, const char* path) {
     /* open file */
     FILE* f = fopen(path, "rb");
 
     if(f == 0) {
         /* error reading file */
-        write2(sockfd, "3Invalid input\tfake\t(NULL) 0", 29);
+        write2(sockfd, error_string, strlen(error_string));
     }
     else {
         /* line buffer */
@@ -83,8 +88,10 @@ void printfile(int sockfd, const char* path) {
     }
 }
 
+/* respond to query */
 void respond(int sockfd, const char* in) {
     if (strncmp("\n", in, 1) == 0 || strncmp("\r\n", in, 2) == 0) {
+        /* empty line received, print root listing */
         printfile(sockfd, "/.gopher");
     }
     else {
@@ -116,7 +123,7 @@ void respond(int sockfd, const char* in) {
         }
         else {
             /* invalid input, return error */
-            write2(sockfd, "3Invalid input\tfake\t(NULL) 0", 29);
+            write2(sockfd, error_string, strlen(error_string));
         }
 
         /* free memory */
@@ -206,17 +213,26 @@ int main(int argc, char* argv[]) {
 
     for(n = optind; n < argc; n++) fprintf(stderr, "ERROR non option argument %s\n", argv[n]);
 
+    /* gain required capabilities */
+    cap_t caps = cap_init();
+    cap_value_t cap_list[3];
+
+    /* chroot */
+    cap_list[0] = CAP_SYS_CHROOT;
+    /* bind low ports */
+    cap_list[1] = CAP_NET_BIND_SERVICE;
+
+    if(cap_set_flag(caps, CAP_PERMITTED, 2, cap_list, CAP_SET) == -1) error("ERROR making capabilities permitted");
+    if(cap_set_flag(caps, CAP_EFFECTIVE, 2, cap_list, CAP_SET) == -1) error("ERROR making capabilities effective");
+    if(cap_set_proc(caps) == -1) error("ERROR setting capabilities");
+    cap_free(caps);
+
     /* move to specified server directory */
     chdir(rootdir);
 
-    /* attempt to chroot into server directory */
-    if(geteuid() == 0) {
-        printf("INFO chrooting into %s\n", rootdir);
-        if (chroot(rootdir) != 0) error("ERROR chrooting into server directory");
-    }
-    else {
-        fprintf(stderr, "WARNING not root user, can't chroot into %s\n", rootdir);
-    }
+    /* chroot into server directory */
+    printf("INFO chrooting into %s\n", rootdir);
+    if (chroot(rootdir) != 0) error("ERROR chrooting into server directory");
 
     /* open new socket */
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
