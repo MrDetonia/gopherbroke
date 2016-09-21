@@ -215,7 +215,7 @@ int main(int argc, char* argv[]) {
 
     /* gain required capabilities */
     cap_t caps = cap_init();
-    cap_value_t cap_list[3];
+    cap_value_t cap_list[2];
 
     /* chroot */
     cap_list[0] = CAP_SYS_CHROOT;
