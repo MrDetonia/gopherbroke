@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <ctype.h>
 #include <unistd.h>
@@ -11,16 +12,9 @@
 #include <sys/capability.h>
 #include <netinet/in.h>
 
-/* typical boolean definitions */
-typedef int bool;
-#define TRUE 1
-#define FALSE 0
-
 /* program defaults */
-#define DEFAULT_PORT 70
-#define DEFAULT_ROOT "/var/gopher"
-
-/* string to write to socket on error */
+const int default_port = 70;
+const char* default_root = "/var/gopher";
 const char* error_string = "3Invalid input\tfake\t(NULL) 0";
 
 /* called when a syscall fails */
@@ -37,15 +31,15 @@ void write2(int sockfd, const char* data, int len) {
 /* checks if a directory exists */
 bool direxists(const char* dir) {
     struct stat sb;
-    if(stat(dir, &sb) == 0 && S_ISDIR(sb.st_mode)) return TRUE;
-    return FALSE;
+    if(stat(dir, &sb) == 0 && S_ISDIR(sb.st_mode)) return true;
+    return false;
 }
 
 /* checks if a file exists */
 bool fileexists(const char* file) {
     struct stat sb;
-    if(stat(file, &sb) == 0 && S_ISREG(sb.st_mode)) return TRUE;
-    return FALSE;
+    if(stat(file, &sb) == 0 && S_ISREG(sb.st_mode)) return true;
+    return false;
 }
 
 /* write a file to socket */
@@ -174,11 +168,11 @@ int main(int argc, char* argv[]) {
     int sockfd, newsockfd;
 
     /* port to listen on */
-    int port = DEFAULT_PORT;
+    int port = default_port;
 
     /* root directory of server */
-    char* rootdir = malloc(strlen(DEFAULT_ROOT));
-    strcpy(rootdir, DEFAULT_ROOT);
+    char* rootdir = malloc(strlen(default_root));
+    strcpy(rootdir, default_root);
 
     /* peer address length */
     socklen_t clilen;
@@ -203,7 +197,7 @@ int main(int argc, char* argv[]) {
                     strcpy(rootdir, optarg);
                 }
                 else {
-                    fprintf(stderr, "WARNING %s does not seem to be a directory, using default of %s\n", optarg, DEFAULT_ROOT);
+                    fprintf(stderr, "WARNING %s does not seem to be a directory, using default of %s\n", optarg, default_root);
                 }
                 break;
             case 'p':
@@ -211,7 +205,7 @@ int main(int argc, char* argv[]) {
                 n = atoi(optarg);
                 if (n > 0) port = n;
                 else {
-                    fprintf(stderr, "WARNING %d is not a valid port, using default of %d\n", n, DEFAULT_PORT);
+                    fprintf(stderr, "WARNING %d is not a valid port, using default of %d\n", n, default_port);
                 }
                 break;
             case '?':
