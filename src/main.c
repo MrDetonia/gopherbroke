@@ -155,6 +155,21 @@ void handle_conn(int sockfd) {
 
 
 int main(int argc, char* argv[]) {
+
+    /* set required capabilities */
+    cap_t caps = cap_init();
+    cap_value_t cap_list[2];
+
+    /* chroot */
+    cap_list[0] = CAP_SYS_CHROOT;
+    /* bind low ports */
+    cap_list[1] = CAP_NET_BIND_SERVICE;
+
+    if(cap_set_flag(caps, CAP_PERMITTED, 2, cap_list, CAP_SET) == -1) error("ERROR making capabilities permitted");
+    if(cap_set_flag(caps, CAP_EFFECTIVE, 2, cap_list, CAP_SET) == -1) error("ERROR making capabilities effective");
+    if(cap_set_proc(caps) == -1) error("ERROR setting capabilities");
+    cap_free(caps);
+
     /* socket file descriptors */
     int sockfd, newsockfd;
 
@@ -210,28 +225,11 @@ int main(int argc, char* argv[]) {
                 abort();
         }
     }
-
     for(n = optind; n < argc; n++) fprintf(stderr, "ERROR non option argument %s\n", argv[n]);
-
-    /* gain required capabilities */
-    cap_t caps = cap_init();
-    cap_value_t cap_list[2];
-
-    /* chroot */
-    cap_list[0] = CAP_SYS_CHROOT;
-    /* bind low ports */
-    cap_list[1] = CAP_NET_BIND_SERVICE;
-
-    if(cap_set_flag(caps, CAP_PERMITTED, 2, cap_list, CAP_SET) == -1) error("ERROR making capabilities permitted");
-    if(cap_set_flag(caps, CAP_EFFECTIVE, 2, cap_list, CAP_SET) == -1) error("ERROR making capabilities effective");
-    if(cap_set_proc(caps) == -1) error("ERROR setting capabilities");
-    cap_free(caps);
-
-    /* move to specified server directory */
-    chdir(rootdir);
 
     /* chroot into server directory */
     printf("INFO chrooting into %s\n", rootdir);
+    if (chdir(rootdir) != 0) error("ERROR moving into server directory");
     if (chroot(rootdir) != 0) error("ERROR chrooting into server directory");
 
     /* open new socket */
