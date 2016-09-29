@@ -35,7 +35,7 @@ OBJ_FILES = $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(SRC_FILES))
 all: $(SRC_FILES) $(BINDIR)/$(TARGET)
 
 $(BINDIR)/$(TARGET): $(OBJ_FILES)
-	$(CC) $(OBJ_FILES) -o $@ -lcap
+	$(CC) $(OBJ_FILES) -o $@ -lcap -lbsd
 
 $(OBJ_FILES): $(OBJDIR)/%.o: $(SRCDIR)/%.c
 	$(CC) -c $(CFLAGS) $< -o $@

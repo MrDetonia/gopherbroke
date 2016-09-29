@@ -17,6 +17,7 @@ See LICENSE for more information.
 - C compiler
 - automake
 - libcap
+- bsd libs (`libbsd-dev` on Debian based distros)
 
 ### Build Process
 - clone this repo using `git clone https://gitla.in/MrDetonia/gopherbroke.git`.
@@ -28,7 +29,8 @@ Simply run the executable with root permissions, and the server will listen on p
 
 Without root permissions, the server will be unable to chroot into the given directory.
 By default, this directory is /var/gopher.
-Be sure that the user running the server has read permissions for the given directory.
+Gopherbroke uses libcap to drop all capabilities but `CAP_SYS_CHROOT` and `CAP_NET_BIND_SERVICE`, for chrooting and binding low ports respectively.
+This is not a catch-all security solution so consider some kind of container and/or access policies for tighter control.
 
 gopherbroke accepts the following arguments:
 - `-d <dir>` which directory to use as the server root (default: /var/gopher)

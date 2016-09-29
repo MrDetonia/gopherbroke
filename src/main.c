@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <string.h>
+#include <bsd/string.h>
 #include <ctype.h>
 #include <unistd.h>
 #include <getopt.h>
@@ -53,29 +53,29 @@ void printfile(int sockfd, const char* path) {
     }
     else {
         /* line buffer */
-        char* buf = NULL;
+        char* buf = malloc(256 * sizeof(char));
 
         /* line length */
         size_t len = 0;
 
-        /* bytes read */
-        ssize_t read;
-
-        while((read = getline(&buf, &len, f)) != -1) {
+        while((getline(&buf, &len, f)) != -1) {
             /* allocate space for adjusted line */
-            char* line = malloc(read + 2);
-            memset(line, 0, read + 2);
+            char* line = malloc(len + 1);
+            memset(line, 0, len + 1);
 
             /* replace \n with \r\n */
-            strncpy(line, buf, read - 1);
-            strcat(line, "\r\n");
+            strlcpy(line, buf, len - 2);
+            strlcat(line, "\r\n", 2);
 
             /* write line to socket */
             write2(sockfd, line, strlen(line));
 
-            /* free up line buffer */
+            /* free line buffer */
             free(line);
         }
+
+        /* free buffer */
+        free(buf);
 
         /* close file */
         fclose(f);
@@ -89,8 +89,9 @@ void respond(int sockfd, const char* in) {
         printfile(sockfd, "/.gopher");
     }
     else {
-        char* buf = malloc(strlen(in) - 1);
-        strncpy(buf, in, strlen(in) - 1);
+        /* clean input */
+        char* buf = malloc(strlen(in));
+        strlcpy(buf, in, strlen(in));
 
         /* determine if given path is a file or directory */
         if(direxists(buf)) {
@@ -103,29 +104,25 @@ void respond(int sockfd, const char* in) {
             strcpy(path, buf);
             strcat(path, "/.gopher");
 
-            /* print file */
             printfile(sockfd, path);
 
-            /* free memory */
             free(path);
         }
         else if(fileexists(buf)) {
             printf("INFO serving file %s\n", buf);
-
-            /* print contents of file */
             printfile(sockfd, buf);
         }
         else {
             /* invalid input, return error */
             write2(sockfd, error_string, strlen(error_string));
+            fprintf(stderr, "I have decided this input is invalid\n");
         }
 
-        /* free memory */
         free(buf);
     }
 
     /* we always finish with a period on a line */
-    write2(sockfd, "\r\n.\r\n", 5);
+    write2(sockfd, ".\r\n", 3);
 }
 
 /* handle a connection */
