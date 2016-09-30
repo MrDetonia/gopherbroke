@@ -101,8 +101,8 @@ void respond(int sockfd, const char* in) {
             char* path = malloc(strlen(buf) + 8);
 
             /* append '/.gopher' to path */
-            strcpy(path, buf);
-            strcat(path, "/.gopher");
+            strlcpy(path, buf, strlen(buf));
+            strlcat(path, "/.gopher", 8);
 
             printfile(sockfd, path);
 
@@ -114,8 +114,8 @@ void respond(int sockfd, const char* in) {
         }
         else {
             /* invalid input, return error */
+            fprintf(stderr, "WARNING invalid input\n");
             write2(sockfd, error_string, strlen(error_string));
-            fprintf(stderr, "I have decided this input is invalid\n");
         }
 
         free(buf);
@@ -168,8 +168,8 @@ int main(int argc, char* argv[]) {
     int port = default_port;
 
     /* root directory of server */
-    char* rootdir = malloc(strlen(default_root));
-    strcpy(rootdir, default_root);
+    char* rootdir = malloc(strlen(default_root) + 1);
+    strlcpy(rootdir, default_root, strlen(default_root) + 1);
 
     /* peer address length */
     socklen_t clilen;
@@ -189,9 +189,9 @@ int main(int argc, char* argv[]) {
             case 'd':
                 if(direxists(optarg)) {
                     /* set directory to serve from */
-                    rootdir = (char*) realloc(rootdir, strlen(optarg));
+                    rootdir = (char*) realloc(rootdir, strlen(optarg) + 1);
                     if (rootdir == NULL) error("ERROR in memory allocation");
-                    strcpy(rootdir, optarg);
+                    strlcpy(rootdir, optarg, strlen(optarg) + 1);
                 }
                 else {
                     fprintf(stderr, "WARNING %s does not seem to be a directory, using default of %s\n", optarg, default_root);
