@@ -58,14 +58,17 @@ void printfile(int sockfd, const char* path) {
         /* line length */
         size_t len = 0;
 
-        while((getline(&buf, &len, f)) != -1) {
+        /* bytes read */
+        ssize_t read = 0;
+
+        while((read = getline(&buf, &len, f)) != -1) {
             /* allocate space for adjusted line */
-            char* line = malloc(len + 1);
-            memset(line, 0, len + 1);
+            char* line = malloc(read + 2);
+            memset(line, 0, read + 2);
 
             /* replace \n with \r\n */
-            strlcpy(line, buf, len - 2);
-            strlcat(line, "\r\n", 2);
+            strlcpy(line, buf, read);
+            strlcat(line, "\r\n\0", read + 2);
 
             /* write line to socket */
             write2(sockfd, line, strlen(line));
@@ -98,11 +101,11 @@ void respond(int sockfd, const char* in) {
             printf("INFO serving directory %s\n", buf);
 
             /* path is directory - print .gopher */
-            char* path = malloc(strlen(buf) + 8);
+            char* path = malloc(strlen(buf) + 9);
 
             /* append '/.gopher' to path */
             strlcpy(path, buf, strlen(buf));
-            strlcat(path, "/.gopher", 8);
+            strlcat(path, "/.gopher", strlen(buf) + 9);
 
             printfile(sockfd, path);
 
