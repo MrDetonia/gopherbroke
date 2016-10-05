@@ -206,14 +206,11 @@ int main(int argc, char* argv[]) {
                 }
                 break;
             case '?':
+            default:
                 /* error handling */
                 if (optopt == 'p') fprintf(stderr, "ERROR option -%c requires an argument\n", optopt);
                 else if (isprint(optopt)) fprintf(stderr, "ERROR unknown option '-%c'\n", optopt);
                 else fprintf(stderr, "ERROR unknown option character '\\x%x'\n", optopt);
-                exit(2);
-            default:
-                /* this shouldn't happen */
-                abort();
         }
     }
     for(n = optind; n < argc; n++) fprintf(stderr, "ERROR non option argument %s\n", argv[n]);
