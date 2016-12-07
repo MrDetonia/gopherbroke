@@ -53,7 +53,7 @@ void printfile(int sockfd, const char* path) {
     }
     else {
         /* line buffer */
-        char* buf = malloc(256 * sizeof(char));
+        char* buf = calloc(256, sizeof(char));
 
         /* line length */
         size_t len = 0;
@@ -63,8 +63,7 @@ void printfile(int sockfd, const char* path) {
 
         while((read = getline(&buf, &len, f)) != -1) {
             /* allocate space for adjusted line */
-            char* line = malloc(read + 2);
-            memset(line, 0, read + 2);
+            char* line = calloc(read + 2, sizeof(char));
 
             /* replace \n with \r\n */
             strlcpy(line, buf, read);
@@ -93,7 +92,7 @@ void respond(int sockfd, const char* in) {
     }
     else {
         /* clean input */
-        char* buf = malloc(strlen(in));
+        char* buf = calloc(strlen(in), sizeof(char));
         strlcpy(buf, in, strlen(in));
 
         /* determine if given path is a file or directory */
@@ -101,7 +100,7 @@ void respond(int sockfd, const char* in) {
             printf("INFO serving directory %s\n", buf);
 
             /* path is directory - print .gopher */
-            char* path = malloc(strlen(buf) + 9);
+            char* path = calloc(strlen(buf) + 9, sizeof(char));
 
             /* append '/.gopher' to path */
             strlcpy(path, buf, strlen(buf));
@@ -171,7 +170,7 @@ int main(int argc, char* argv[]) {
     int port = default_port;
 
     /* root directory of server */
-    char* rootdir = malloc(strlen(default_root) + 1);
+    char* rootdir = calloc(strlen(default_root) + 1, sizeof(char));
     strlcpy(rootdir, default_root, strlen(default_root) + 1);
 
     /* peer address length */
