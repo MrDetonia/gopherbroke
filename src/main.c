@@ -53,7 +53,7 @@ void printfile(int sockfd, const char* path) {
     }
     else {
         /* line buffer */
-        char* buf = calloc(256, sizeof(char));
+        char* buf = NULL;
 
         /* line length */
         size_t len = 0;
@@ -72,12 +72,10 @@ void printfile(int sockfd, const char* path) {
             /* write line to socket */
             write2(sockfd, line, strlen(line));
 
-            /* free line buffer */
+            /* free buffers */
+            free(buf);
             free(line);
         }
-
-        /* free buffer */
-        free(buf);
 
         /* close file */
         fclose(f);
